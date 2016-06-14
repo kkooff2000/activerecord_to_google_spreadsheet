@@ -1,6 +1,9 @@
 require "activerecord_to_google_spreadsheet/version"
+require "activerecord_to_google_spreadsheet/utils"
 require "google_drive"
 module ActiveRecordToGoogleSpreadsheet
+  extend Utils
+
   class << self
     attr_accessor :configuration
   end
@@ -110,7 +113,7 @@ module ActiveRecordToGoogleSpreadsheet
     return auth_url.to_s
   end
 
-  module ActiveRecordBaseTransformer
+  module ActiveRecordBaseConverter
     def to_google_spreadsheet
       puts '****************************base test************'
       clazz = self.model_name.name.capitalize.singularize.camelize.to_s.constantize
@@ -124,20 +127,27 @@ module ActiveRecordToGoogleSpreadsheet
     end
   end
 
-  module ActiveRecordRelationTransformer
-    def to_google_spreadsheet(session, spreadsheet_key, name = self.table_name = self.table_name, worksheet_title = false, row_offset = 1)
-      puts '****************************relation test************'
-      puts self.column_names
-      puts self.table_name
-
+  module ActiveRecordRelationConverter
+    include Utils
+    extend Utils
+    def to_google_spreadsheet(session, spreadsheet_key, name: self.table_name, worksheet_title: false, row_offset: 1)
       spreadsheet = session.spreadsheet_by_key(spreadsheet_key)
       ws = get_worksheet_by_name(spreadsheet, name)
 
+      if worksheet_title
+        self.column_names.each_with_index do |name, column_index|
+          ws[row_offset, column_index+1] = name
+        end
+        row_offset += 1
+      end
+
       self.each_with_index do |item, index|
         self.column_names.each_with_index do |name, column_index|
-          ws[index + row_offset, column_index] = item[name]
+          ws[index + row_offset, column_index + 1] = item[name]
         end
       end
+      ws.save
+      ws.reload
     end
 
     def from_google_spreadsheet
@@ -145,20 +155,11 @@ module ActiveRecordToGoogleSpreadsheet
   end
 
   class ActiveRecord::Base
-    include ActiveRecordBaseTransformer
+    include ActiveRecordBaseConverter
   end
 
   class ActiveRecord::Relation
-    include ActiveRecordRelationTransformer
-  end
-
-  private
-  def self.get_worksheet_by_name(st, name)
-    ws = st.worksheet_by_title(name)
-    if !ws
-      ws = st.add_worksheet(name)
-    end
-    return ws
+    include ActiveRecordRelationConverter
   end
 
   def self.each_tables(session, spreadsheet_key)
