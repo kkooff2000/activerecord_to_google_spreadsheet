@@ -33,14 +33,8 @@ module ActiveRecordToGoogleSpreadsheet
     return info
   end
 
-  def self.to_spreadsheet(session, spreadsheet_key)
-    st = session.spreadsheet_by_key(spreadsheet_key)
-    info = get_db_info
-    start_time = Time.now
-    info.each do |name, value|
-
-      ws = get_worksheet_by_name(st, name)
-      clazz = name.capitalize.singularize.camelize.to_s.constantize
+  def self.dump_to_spreadsheet(session, spreadsheet_key)
+    self.each_tables(session, spreadsheet_key) do |name, value, ws, clazz, info|
 
       info[name].each_with_index do |val, index|
         ws[1, index+1] = val
@@ -54,18 +48,10 @@ module ActiveRecordToGoogleSpreadsheet
       ws.save
       ws.reload
     end
-    puts '*************************'
-    puts Time.now - start_time
-    puts '*************************'
   end
 
-  def self.from_spreadsheet(session, spreadsheet_key)
-    st = session.spreadsheet_by_key(spreadsheet_key)
-    info = get_db_info
-    start_time = Time.now
-    info.each do |name, value|
-      ws = get_worksheet_by_name(st, name)
-
+  def self.restore_from_spreadsheet(session, spreadsheet_key)
+    self.each_tables(session, spreadsheet_key) do |name, value, ws, clazz, info|
       clazz = name.capitalize.singularize.camelize.to_s.constantize
 
       (2..ws.num_rows).each do |row|
@@ -79,12 +65,6 @@ module ActiveRecordToGoogleSpreadsheet
         c.save
       end
     end
-    puts '*************************'
-    puts Time.now - start_time
-    puts '*************************'
-  end
-
-  def self.each_tables
   end
 
   def self.setup_session(code)
@@ -145,14 +125,17 @@ module ActiveRecordToGoogleSpreadsheet
   end
 
   module ActiveRecordRelationTransformer
-    def to_google_spreadsheet(session, spreadsheet_key, name = self.table_name = self.table_name, worksheet_title = false)
+    def to_google_spreadsheet(session, spreadsheet_key, name = self.table_name = self.table_name, worksheet_title = false, row_offset = 1)
       puts '****************************relation test************'
       puts self.column_names
       puts self.table_name
 
-      self.each do |item|
-        self.column_names.each do |name|
-          puts item[name]
+      spreadsheet = session.spreadsheet_by_key(spreadsheet_key)
+      ws = get_worksheet_by_name(spreadsheet, name)
+
+      self.each_with_index do |item, index|
+        self.column_names.each_with_index do |name, column_index|
+          ws[index + row_offset, column_index] = item[name]
         end
       end
     end
@@ -176,5 +159,19 @@ module ActiveRecordToGoogleSpreadsheet
       ws = st.add_worksheet(name)
     end
     return ws
+  end
+
+  def self.each_tables(session, spreadsheet_key)
+    spreadsheet = session.spreadsheet_by_key(spreadsheet_key)
+    info = get_db_info
+    start_time = Time.now
+    info.each do |name, value|
+      worksheet = get_worksheet_by_name(spreadsheet, name)
+      clazz = name.capitalize.singularize.camelize.to_s.constantize
+      yield(name, value, worksheet, clazz, info)
+    end
+    puts '*************************'
+    puts Time.now - start_time
+    puts '*************************'
   end
 end
