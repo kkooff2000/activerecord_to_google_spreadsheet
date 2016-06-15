@@ -1,20 +1,28 @@
 # ActiverecordToGoogleSpreadsheet
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/activerecord_to_google_spreadsheet`. To experiment with that code, run `bin/console` for an interactive prompt.
+This is a rails gem which can help you dump or export models to google spreadsheet easily.
 
-TODO: Delete this and the text above, and describe your gem
+TODO: Apply to_google_spreadsheet to ARRAY
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
-```ruby
+1. Add this line to your application's Gemfile:
+```sh
+gem 'google_drive'
 gem 'activerecord_to_google_spreadsheet'
 ```
-
+2. Add file to config/initializers/activerecord_to_google_spreadsheet.rb
+```sh
+require 'activerecord_to_google_spreadsheet'
+ActiveRecordToGoogleSpreadsheet.configure do |config|
+  config.client_id = "$GOOGLE_CLIENT_ID"
+  config.client_secret = "$GOOGLE_CLIENT_SECRET"
+  config.redirect_uri = "$CALLBACK_URL"
+end
+```
 And then execute:
 
-    $ bundle
+    $ bundle install
 
 Or install it yourself as:
 
@@ -22,17 +30,43 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Then you can use following api.
+```sh
+ActiveRecordToGoogleSpreadsheet.dump_to_spreadsheet(session, "$SPREADSHEET_KEY")
+```
+Then you can see your databases show on https://docs.google.com/spreadsheets/d/$SPREADSHEET_KEY/
 
-## Development
+You can also restore databases from google spreadsheet by following api.
+```sh
+ActiveRecordToGoogleSpreadsheet.restore_from_spreadsheet(session, "$SPREADSHEET_KEY")
+```
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Then your databases will apply data from google spreadsheet.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+There are some other api like this.
+```sh
+Product.where('price < 50').to_google_spreadsheet(session, "$SPREADSHEET_KEY", row_offset: 10, worksheet_title: true)
+```
 
-## Contributing
+The variable session is GoogleDrive::Session.
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/activerecord_to_google_spreadsheet. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+You can follow the following url to get GoogleDrive::Session.
+
+https://github.com/gimite/google-drive-ruby
+
+Or ActiveRecordToGoogleSpreadsheet provide other way to get session.
+```sh
+//You can use the following code to login google account to grant auth code
+redirect_to ActiveRecordToGoogleSpreadsheet.google_login_url
+
+//Then put following code to the callback url controller function
+ActiveRecordToGoogleSpreadsheet.setup_session(params['code'])
+
+//Then you can get session now.
+session = ActiveRecordToGoogleSpreadsheet.get_session()
+```
+
+Good Luck.
 
 
 ## License
