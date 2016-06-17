@@ -1,5 +1,6 @@
 require "activerecord_to_google_spreadsheet/version"
 require "activerecord_to_google_spreadsheet/utils"
+require "activerecord_to_google_spreadsheet/converter"
 require "google_drive"
 module ActiveRecordToGoogleSpreadsheet
   extend Utils
@@ -113,54 +114,17 @@ module ActiveRecordToGoogleSpreadsheet
     return auth_url.to_s
   end
 
-  module ActiveRecordBaseConverter
-    def to_google_spreadsheet
-      puts '****************************base test************'
-      clazz = self.model_name.name.capitalize.singularize.camelize.to_s.constantize
-      puts clazz.column_names
-      clazz.column_names.each do |name|
-        puts self[name]
-      end
-    end
-
-    def from_google_spreadsheet
-    end
-  end
-
-  module ActiveRecordRelationConverter
-    include Utils
-    extend Utils
-    def to_google_spreadsheet(session, spreadsheet_key, name: self.table_name, worksheet_title: false, row_offset: 1)
-      spreadsheet = session.spreadsheet_by_key(spreadsheet_key)
-      ws = get_worksheet_by_name(spreadsheet, name)
-
-      if worksheet_title
-        self.column_names.each_with_index do |name, column_index|
-          ws[row_offset, column_index+1] = name
-        end
-        row_offset += 1
-      end
-
-      self.each_with_index do |item, index|
-        self.column_names.each_with_index do |name, column_index|
-          ws[index + row_offset, column_index + 1] = item[name]
-        end
-      end
-      ws.save
-      ws.reload
-    end
-
-    def from_google_spreadsheet
-    end
-  end
-
   class ActiveRecord::Base
-    include ActiveRecordBaseConverter
+    include Converter::ActiveRecordBaseConverter
   end
 
   class ActiveRecord::Relation
-    include ActiveRecordRelationConverter
+    include Converter::ActiveRecordRelationConverter
   end
+
+#  class Array
+#    include Converter::ArrayConverter
+#  end
 
   def self.each_tables(session, spreadsheet_key)
     spreadsheet = session.spreadsheet_by_key(spreadsheet_key)
